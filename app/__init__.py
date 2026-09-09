@@ -1,0 +1,1 @@
+"""Cloud Notes application package."""
