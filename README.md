@@ -10,9 +10,6 @@ A small, polished full-stack notes application built for a simple AWS EC2 deploy
 - REST API with FastAPI, SQLAlchemy, and Pydantic validation
 - One server serves both the frontend and API
 
-## Screenshots
-
-_Add screenshots here after running the app locally or on EC2._
 
 ## Technology stack and architecture
 
