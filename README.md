@@ -4,7 +4,8 @@ A small, polished full-stack notes application built for a simple AWS EC2 deploy
 
 ## Features
 
-- Create, view, edit, and delete notes
+- Create, view, edit, and delete private, user-owned notes
+- Secure signup, login, persistent signed-cookie sessions, and logout
 - Persistent SQLite storage in `data/notes.db`
 - Responsive warm editorial interface with loading, empty, validation, success, and error states
 - REST API with FastAPI, SQLAlchemy, and Pydantic validation
@@ -19,7 +20,7 @@ _Add screenshots here after running the app locally or on EC2._
 - Backend: Python, FastAPI, SQLAlchemy, SQLite, Uvicorn
 - Frontend: HTML, CSS, vanilla JavaScript
 
-`Browser → FastAPI (/ and /static) → JavaScript fetch('/api/notes') → SQLite`
+`Browser → FastAPI (/ and /static) → signed HttpOnly session cookie → user-scoped notes → SQLite`
 
 ## Project structure
 
@@ -47,7 +48,31 @@ uvicorn app.main:app --host 0.0.0.0 --port 8000
 
 On Windows PowerShell, activate with `.\.venv\Scripts\Activate.ps1`, then use `python -m uvicorn app.main:app --host 0.0.0.0 --port 8000`. Open `http://localhost:8000` locally.
 
-The frontend deliberately uses relative `/api/notes` paths, so it works unchanged on EC2. Run checks with `pytest`.
+Before starting the app, set a session-signing secret. Copy `.env.example` for reference, but do not commit a real `.env`. The app reads environment variables directly.
+
+```bash
+export SECRET_KEY="replace-with-a-long-random-secret"
+export COOKIE_SECURE=false  # use true when the app is behind HTTPS
+uvicorn app.main:app --host 0.0.0.0 --port 8000
+pytest -q
+```
+
+On Windows PowerShell: `$env:SECRET_KEY = "replace-with-a-long-random-secret"`. The frontend deliberately uses relative API paths, so it works unchanged on EC2.
+
+## Authentication and private notes
+
+Create an account from **Sign up**, then log in. Passwords are hashed with Argon2 via `pwdlib`; plaintext passwords and hashes are never returned to the browser. Login issues a seven-day, signed `HttpOnly`, `SameSite=Lax` cookie. Logout removes it.
+
+Authentication endpoints:
+
+| Method | Path | Purpose |
+| --- | --- | --- |
+| POST | `/api/auth/signup` | Create an account |
+| POST | `/api/auth/login` | Start an authenticated session |
+| POST | `/api/auth/logout` | End the session |
+| GET | `/api/auth/me` | Read the current user’s safe profile |
+
+All note endpoints below require login. The API filters every operation by the authenticated user, so another user’s note is returned as `404` rather than exposed.
 
 ## API endpoints
 
@@ -63,7 +88,7 @@ Create or update body: `{"title": "A thought", "content": "Optional note body"}`
 
 ## Database
 
-SQLite is stored at `data/notes.db`. The directory and tables are created automatically at application startup. The database is ignored by Git, but remains on disk across server restarts.
+SQLite is stored at `data/notes.db`. The directory and tables are created automatically at application startup. Authentication adds a `users` table and a nullable `notes.user_id` relationship. On an existing database, the app safely adds the column without deleting data. Earlier notes remain unowned and are not shown to any account; assign them manually only if you decide their owner. The database is ignored by Git, but remains on disk across server restarts.
 
 ## AWS EC2 deployment
 
@@ -85,6 +110,7 @@ cd cloud-notes-app
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
+export SECRET_KEY="replace-with-a-long-random-secret"
 chmod +x start.sh
 ./start.sh
 ```
@@ -102,6 +128,7 @@ Port 22 permits SSH management; port 8000 lets browsers reach Uvicorn for this a
 - **Site will not open:** confirm the server is running, use the current public IP, and check the port-8000 Security Group rule.
 - **SSH fails:** confirm username `ubuntu`, key permissions `400`, and a port-22 rule for your current IP.
 - **Module not found:** activate `.venv` and run `pip install -r requirements.txt`.
+- **SECRET_KEY must be set:** export a long random `SECRET_KEY` before starting. Keep it stable across restarts or existing sessions will be invalidated.
 - **Address already in use:** stop the prior Uvicorn process or choose another port and update the Security Group.
 - **Notes missing:** start from the project directory and inspect `data/notes.db` on that server.
 
