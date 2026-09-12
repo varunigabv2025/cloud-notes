@@ -8,12 +8,23 @@ function showToast(message) { const toast = el("toast"); toast.textContent = mes
 function formatDate(value) { return new Intl.DateTimeFormat(undefined, { month:"short", day:"numeric", year:"numeric" }).format(new Date(value)); }
 function setState(state) { loading.hidden = state !== "loading"; notesList.hidden = state !== "notes"; empty.hidden = state !== "empty"; error.hidden = state !== "error"; el("notes-region").setAttribute("aria-busy", state === "loading"); }
 function escapeHtml(value) { const temp = document.createElement("div"); temp.textContent = value; return temp.innerHTML; }
+function formatApiError(body) {
+  if (typeof body?.detail === "string") return body.detail;
+  if (Array.isArray(body?.detail)) {
+    return body.detail.map((issue) => {
+      const field = issue?.loc?.at(-1);
+      const label = typeof field === "string" ? field.replaceAll("_", " ").replace(/\b\w/g, letter => letter.toUpperCase()) : "Input";
+      return `${label}: ${typeof issue?.msg === "string" ? issue.msg : "Invalid value."}`;
+    }).join(" ");
+  }
+  return "Something went wrong.";
+}
 function showDashboard(user) { el("auth-view").hidden = true; el("dashboard").hidden = false; el("account-actions").hidden = false; el("user-greeting").textContent = `Welcome, ${user.name}`; }
 function showAuth() { notes = []; el("dashboard").hidden = true; el("account-actions").hidden = true; el("auth-view").hidden = false; }
 function showAuthForm(kind) { const signup = kind === "signup"; el("login-form").hidden = signup; el("signup-form").hidden = !signup; el("auth-kicker").textContent = signup ? "A QUIET CORNER" : "WELCOME BACK"; el("auth-title").innerHTML = signup ? "Begin a place for<br /><em>your thoughts.</em>" : "Your thoughts,<br /><em>waiting for you.</em>"; el("auth-copy").textContent = signup ? "Create an account to keep your notes private." : "Log in to return to your quiet corner."; }
 function renderNotes() { notesList.replaceChildren(); if (!notes.length) { setState("empty"); return; } notesList.innerHTML = notes.map(note => `<article class="note-card" tabindex="0" data-id="${note.id}"><h2>${escapeHtml(note.title)}</h2><p class="note-preview">${escapeHtml(note.content || "No content yet.")}</p><footer class="card-footer"><span>${note.updated_at !== note.created_at ? "Updated" : "Created"} ${formatDate(note.updated_at)}</span><span class="card-actions"><button class="card-button" data-action="edit" data-id="${note.id}">Edit</button><button class="card-button delete" data-action="delete" data-id="${note.id}">Delete</button></span></footer></article>`).join(""); setState("notes"); }
-async function request(path = "", options = {}) { const response = await fetch(`${apiUrl}${path}`, { headers:{ "Content-Type":"application/json" }, ...options }); if (!response.ok) { const body = await response.json().catch(() => ({})); throw new Error(body.detail || "Something went wrong."); } return response.status === 204 ? null : response.json(); }
-async function authRequest(path, options = {}) { const response = await fetch(`/api/auth${path}`, { headers:{ "Content-Type":"application/json" }, ...options }); if (!response.ok) { const body = await response.json().catch(() => ({})); throw new Error(body.detail || "Something went wrong."); } return response.status === 204 ? null : response.json(); }
+async function request(path = "", options = {}) { const response = await fetch(`${apiUrl}${path}`, { headers:{ "Content-Type":"application/json" }, ...options }); if (!response.ok) { const body = await response.json().catch(() => ({})); throw new Error(formatApiError(body)); } return response.status === 204 ? null : response.json(); }
+async function authRequest(path, options = {}) { const response = await fetch(`/api/auth${path}`, { headers:{ "Content-Type":"application/json" }, ...options }); if (!response.ok) { const body = await response.json().catch(() => ({})); throw new Error(formatApiError(body)); } return response.status === 204 ? null : response.json(); }
 async function loadNotes() { setState("loading"); try { notes = await request(); renderNotes(); } catch (err) { if (err.message === "Please log in.") return showAuth(); el("error-message").textContent = err.message; setState("error"); } }
 function openModal(note = null) { editingId = note?.id ?? null; el("modal-kicker").textContent = note ? "EDIT NOTE" : "NEW NOTE"; el("modal-title").textContent = note ? "Refine your thought." : "Make a little room for a thought."; el("save-button").textContent = note ? "Save Changes" : "Save Note"; el("note-title").value = note?.title ?? ""; el("note-content").value = note?.content ?? ""; el("title-error").textContent = ""; modal.hidden = false; setTimeout(() => el("note-title").focus(), 0); }
 function closeModal() { modal.hidden = true; form.reset(); editingId = null; }
