@@ -27,7 +27,7 @@ Live Demo:http://65.1.100.90:8000
 app/                 FastAPI application, database model, schemas, and routes
 frontend/            Browser interface (HTML, CSS, JavaScript)
 data/.gitkeep        Keeps the database directory in Git; notes.db is ignored
-tests/               Small CRUD API test suite
+tests/               tests/ API and authentication test suite
 requirements.txt     Python packages
 start.sh             Ubuntu/EC2 startup command
 ```
@@ -37,7 +37,7 @@ start.sh             Ubuntu/EC2 startup command
 Python 3.10+ is recommended.
 
 ```bash
-git clone <YOUR-REPOSITORY-URL>
+git clone https://github.com/varunigabv2025/cloud-notes
 cd cloud-notes-app
 python3 -m venv .venv
 source .venv/bin/activate
@@ -104,7 +104,7 @@ chmod 400 your-key.pem
 ssh -i your-key.pem ubuntu@<EC2-PUBLIC-IP>
 sudo apt update
 sudo apt install -y python3 python3-venv python3-pip git
-git clone <YOUR-REPOSITORY-URL>
+git clone https://github.com/varunigabv2025/cloud-notes
 cd cloud-notes-app
 python3 -m venv .venv
 source .venv/bin/activate
