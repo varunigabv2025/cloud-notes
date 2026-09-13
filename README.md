@@ -1,6 +1,7 @@
 # Cloud Notes
 
 A small, polished full-stack notes application built for a simple AWS EC2 deployment. Code goes to GitHub, is copied to Ubuntu EC2 over SSH, and is then available on the internet.
+Live Demo:http://65.1.100.90:8000
 
 ## Features
 
